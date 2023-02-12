@@ -1,5 +1,7 @@
 const NodemonPlugin = require('nodemon-webpack-plugin');
 const nodeExternals = require('webpack-node-externals');
+const Dotenv = require('dotenv-webpack');
+
 
 const baseConfig = {
   mode: 'development',
@@ -53,7 +55,10 @@ const config = [
       server: './src/connectors/web/app.js'
     },
     externals: [nodeExternals()],
-    plugins: [new NodemonPlugin()]
+    plugins: [
+        new NodemonPlugin(),
+        new Dotenv()
+    ]
   }
 ];
 

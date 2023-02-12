@@ -17,8 +17,7 @@ const ensureNumber = (variableName) => {
 };
 
 const requiredStrings = [
-  'GITHUB_CLIENT_ID',
-  'GITHUB_CLIENT_SECRET',
+  'TWITTER_CLIENT_ID',
   'COGNITO_REDIRECT_URI',
 ];
 

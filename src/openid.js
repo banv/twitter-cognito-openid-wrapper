@@ -1,46 +1,38 @@
 const logger = require('./connectors/logger');
-const { NumericDate } = require('./helpers');
 const crypto = require('./crypto');
-const github = require('./github');
+const twitter = require('./twitter');
 
 const getJwks = () => ({ keys: [crypto.getPublicKey()] });
 
 const getUserInfo = (accessToken) =>
   Promise.all([
-    github()
+      twitter()
       .getUserDetails(accessToken)
       .then((userDetails) => {
         logger.debug('Fetched user details: %j', userDetails, {});
-        // Here we map the github user response to the standard claims from
+        // Here we map the twitter user response to the standard claims from
         // OpenID. The mapping was constructed by following
-        // https://developer.github.com/v3/users/
+        // https://developer.twitter.com/en/docs/twitter-api/users/lookup/api-reference/get-users-me
         // and http://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
         const claims = {
           sub: `${userDetails.id}`, // OpenID requires a string
           name: userDetails.name,
-          preferred_username: userDetails.login,
-          profile: userDetails.html_url,
-          picture: userDetails.avatar_url,
-          website: userDetails.blog,
-          updated_at: NumericDate(
-            // OpenID requires the seconds since epoch in UTC
-            new Date(Date.parse(userDetails.updated_at))
-          ),
+          preferred_username: userDetails.username,
+
         };
         logger.debug('Resolved claims: %j', claims, {});
         return claims;
       }),
-    github()
+      twitter()
       .getUserEmails(accessToken)
       .then((userEmails) => {
         logger.debug('Fetched user emails: %j', userEmails, {});
-        const primaryEmail = userEmails.find((email) => email.primary);
-        if (primaryEmail === undefined) {
-          throw new Error('User did not have a primary email address');
-        }
+        // const primaryEmail = userEmails.find((email) => email.primary);
+        // if (primaryEmail === undefined) {
+        //   throw new Error('User did not have a primary email address');
+        // }
         const claims = {
-          email: primaryEmail.email,
-          email_verified: primaryEmail.verified,
+          email: userEmails.email,
         };
         logger.debug('Resolved claims: %j', claims, {});
         return claims;
@@ -55,19 +47,19 @@ const getUserInfo = (accessToken) =>
   });
 
 const getAuthorizeUrl = (client_id, scope, state, response_type) =>
-  github().getAuthorizeUrl(client_id, scope, state, response_type);
+  twitter().getAuthorizeUrl(client_id, scope, state, response_type);
 
 const getTokens = (code, state, host) =>
-  github()
+    twitter()
     .getToken(code, state)
-    .then((githubToken) => {
-      logger.debug('Got token: %s', githubToken, {});
+    .then((twitterToken) => {
+      logger.debug('Got token: %s', twitterToken, {});
       // GitHub returns scopes separated by commas
       // But OAuth wants them to be spaces
       // https://tools.ietf.org/html/rfc6749#section-5.1
       // Also, we need to add openid as a scope,
       // since GitHub will have stripped it
-      const scope = `openid ${githubToken.scope.replace(',', ' ')}`;
+      const scope = `openid ${twitterToken.scope.replace(',', ' ')}`;
 
       // ** JWT ID Token required fields **
       // iss - issuer https url
@@ -87,7 +79,7 @@ const getTokens = (code, state, host) =>
 
         const idToken = crypto.makeIdToken(payload, host);
         const tokenResponse = {
-          ...githubToken,
+          ...twitterToken,
           scope,
           id_token: idToken,
         };
